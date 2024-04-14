@@ -11,9 +11,9 @@ mod keyword;
 mod literal;
 mod parser;
 mod scanner;
+mod stmt;
 mod token;
 
-use crate::ast_printer::AstPrinter;
 use crate::interpreter::Interpreter;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
@@ -25,15 +25,13 @@ fn run(src: String) {
     let mut parser: Parser = Parser::new(tokens);
 
     match parser.parse() {
-        Ok(expr) => {
-            match Interpreter::interpret(&expr) {
-                Ok(val) => match val {
-                    Some(val) => println!("{}", val),
-                    None => println!("None"),
-                },
-                Err(e) => println!("{}", e),
-            }
-        }
+        Ok(expr) => match Interpreter::interpret(&expr) {
+            Ok(val) => match val {
+                Some(val) => println!("{}", val),
+                None => println!("None"),
+            },
+            Err(e) => println!("{}", e),
+        },
         Err(e) => println!("{}", e),
     };
 }
