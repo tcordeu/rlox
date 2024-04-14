@@ -19,6 +19,10 @@ impl AstPrinter {
             Expr::Unary(ref token, ref expr) => {
                 format!("({} {})", token.lexeme(), Self::pretty_print(expr))
             }
+            Expr::Var(ref token) => format!("var {}", token.lexeme()),
+            Expr::Assign(ref token, ref expr) => {
+                format!("({} = {})", token.lexeme(), Self::pretty_print(expr))
+            }
         }
     }
 }

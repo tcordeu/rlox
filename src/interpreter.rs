@@ -1,3 +1,4 @@
+use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::Expr;
 use crate::literal::*;
@@ -5,38 +6,75 @@ use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use std::rc::Rc;
 
-pub struct Interpreter;
+pub struct Interpreter {
+    current_env: Option<Box<Environment>>,
+    env: Environment,
+}
 
 impl Interpreter {
-    pub fn interpret(statements: Vec<Stmt>) {
+    pub fn new() -> Interpreter {
+        Interpreter {
+            current_env: None,
+            env: Environment::new(None),
+        }
+    }
+
+    pub fn interpret(&mut self, statements: Vec<Stmt>) {
         for s in statements {
-            match Self::execute(&s) {
+            match self.execute(&s) {
                 Ok(_) => (),
                 Err(e) => println!("{}", e),
             }
         }
     }
 
-    fn execute(s: &Stmt) -> Result<(), RuntimeError> {
+    fn execute(&mut self, s: &Stmt) -> Result<(), RuntimeError> {
         match *s {
             Stmt::Expr(ref e) => {
-                let _ = Self::eval(e);
+                let _ = self.eval(e);
             }
-            Stmt::Print(ref e) => match Self::eval(e)? {
+            Stmt::Print(ref e) => match self.eval(e)? {
                 Some(val) => println!("{}", val),
-                None => println!("None"),
+                None => println!("nil"),
             },
+            Stmt::Var(ref token, ref init) => {
+                let val: Option<Rc<dyn Literal>> = match init {
+                    Some(n) => self.eval(n)?,
+                    None => None,
+                };
+
+                self.get_env().define(token.lexeme().to_string(), val)
+            }
+            Stmt::Block(ref statements) => {
+                let prev_env = self.current_env.clone();
+
+                self.current_env = Some(Box::new(Environment::new(Some(Box::new(
+                    self.get_env().clone(),
+                )))));
+                for s in statements {
+                    self.execute(s)?;
+                }
+
+                self.current_env = prev_env;
+            }
         }
 
         Ok(())
     }
 
-    fn eval(e: &Expr) -> Result<Option<Rc<dyn Literal>>, RuntimeError> {
+    fn eval(&mut self, e: &Expr) -> Result<Option<Rc<dyn Literal>>, RuntimeError> {
         match *e {
             Expr::Literal(ref l) => Ok(l.clone()),
-            Expr::Grouping(ref expr) => Self::eval(expr),
+            Expr::Grouping(ref expr) => self.eval(expr),
+            Expr::Var(ref token) => self.get_env().get(token.clone()).cloned(),
+            Expr::Assign(ref token, ref expr) => {
+                let val: Option<Rc<dyn Literal>> = self.eval(expr)?;
+
+                self.get_env().assign(token.clone(), val.clone())?;
+                Ok(val)
+            }
             Expr::Unary(ref token, ref expr) => {
-                let right: Option<Rc<dyn Literal>> = Self::eval(expr)?;
+                let right: Option<Rc<dyn Literal>> = self.eval(expr)?;
 
                 match token.ttype() {
                     TokenType::Minus => {
@@ -50,8 +88,8 @@ impl Interpreter {
                 }
             }
             Expr::Binary(ref lhs, ref token, ref rhs) => {
-                let left: Option<Rc<dyn Literal>> = Self::eval(lhs)?;
-                let right: Option<Rc<dyn Literal>> = Self::eval(rhs)?;
+                let left: Option<Rc<dyn Literal>> = self.eval(lhs)?;
+                let right: Option<Rc<dyn Literal>> = self.eval(rhs)?;
 
                 let l_clone = Self::unwrap_optional(left.clone(), token.clone())?;
                 let r_clone = Self::unwrap_optional(right.clone(), token.clone())?;
@@ -187,5 +225,13 @@ impl Interpreter {
                 token.clone(),
             ))?
             .to_string())
+    }
+
+    fn get_env(&mut self) -> &mut Environment {
+        if self.current_env.is_some() {
+            self.current_env.as_mut().unwrap()
+        } else {
+            &mut self.env
+        }
     }
 }
