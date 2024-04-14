@@ -1,18 +1,42 @@
 use crate::error::RuntimeError;
 use crate::expr::Expr;
 use crate::literal::*;
+use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use std::rc::Rc;
 
 pub struct Interpreter;
 
 impl Interpreter {
-    pub fn interpret(e: &Expr) -> Result<Option<Rc<dyn Literal>>, RuntimeError> {
+    pub fn interpret(statements: Vec<Stmt>) {
+        for s in statements {
+            match Self::execute(&s) {
+                Ok(_) => (),
+                Err(e) => println!("{}", e),
+            }
+        }
+    }
+
+    fn execute(s: &Stmt) -> Result<(), RuntimeError> {
+        match *s {
+            Stmt::Expr(ref e) => {
+                let _ = Self::eval(e);
+            }
+            Stmt::Print(ref e) => match Self::eval(e)? {
+                Some(val) => println!("{}", val),
+                None => println!("None"),
+            },
+        }
+
+        Ok(())
+    }
+
+    fn eval(e: &Expr) -> Result<Option<Rc<dyn Literal>>, RuntimeError> {
         match *e {
             Expr::Literal(ref l) => Ok(l.clone()),
-            Expr::Grouping(ref expr) => Self::interpret(expr),
+            Expr::Grouping(ref expr) => Self::eval(expr),
             Expr::Unary(ref token, ref expr) => {
-                let right: Option<Rc<dyn Literal>> = Self::interpret(expr)?;
+                let right: Option<Rc<dyn Literal>> = Self::eval(expr)?;
 
                 match token.ttype() {
                     TokenType::Minus => {
@@ -26,8 +50,8 @@ impl Interpreter {
                 }
             }
             Expr::Binary(ref lhs, ref token, ref rhs) => {
-                let left: Option<Rc<dyn Literal>> = Self::interpret(lhs)?;
-                let right: Option<Rc<dyn Literal>> = Self::interpret(rhs)?;
+                let left: Option<Rc<dyn Literal>> = Self::eval(lhs)?;
+                let right: Option<Rc<dyn Literal>> = Self::eval(rhs)?;
 
                 let l_clone = Self::unwrap_optional(left.clone(), token.clone())?;
                 let r_clone = Self::unwrap_optional(right.clone(), token.clone())?;

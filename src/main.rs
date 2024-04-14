@@ -25,13 +25,7 @@ fn run(src: String) {
     let mut parser: Parser = Parser::new(tokens);
 
     match parser.parse() {
-        Ok(expr) => match Interpreter::interpret(&expr) {
-            Ok(val) => match val {
-                Some(val) => println!("{}", val),
-                None => println!("None"),
-            },
-            Err(e) => println!("{}", e),
-        },
+        Ok(statements) => Interpreter::interpret(statements),
         Err(e) => println!("{}", e),
     };
 }
