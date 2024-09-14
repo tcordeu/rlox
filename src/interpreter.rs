@@ -172,7 +172,15 @@ impl Interpreter {
     }
 
     fn is_truthy(l: Option<Rc<dyn Literal>>) -> bool {
-        l.is_some()
+        if !l.is_some() {
+            return false;
+        }
+
+        if l.unwrap().ltype() == LiteralType::False {
+            false
+        } else {
+            true
+        }
     }
 
     fn is_equal(l: Option<Rc<dyn Literal>>, r: Option<Rc<dyn Literal>>) -> bool {
