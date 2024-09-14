@@ -72,6 +72,21 @@ impl Interpreter {
     fn eval(&mut self, e: &Expr) -> Result<Option<Rc<dyn Literal>>, RuntimeError> {
         match *e {
             Expr::Literal(ref l) => Ok(l.clone()),
+            Expr::Logical(ref l, ref t, ref r) => {
+                let left = self.eval(l)?;
+
+                if t.ttype() == TokenType::Or {
+                    if Self::is_truthy(left.clone()) {
+                        return Ok(left);
+                    }
+                } else {
+                    if !Self::is_truthy(left.clone()) {
+                        return Ok(left);
+                    }
+                }
+
+                self.eval(r)
+            }
             Expr::Grouping(ref expr) => self.eval(expr),
             Expr::Var(ref token) => self.get_env().get(token.clone()).cloned(),
             Expr::Assign(ref token, ref expr) => {

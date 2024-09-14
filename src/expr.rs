@@ -7,6 +7,7 @@ pub enum Expr {
     Binary(Rc<Expr>, Token, Rc<Expr>),
     Grouping(Rc<Expr>),
     Literal(Option<Rc<dyn Literal>>),
+    Logical(Rc<Expr>, Token, Rc<Expr>),
     Unary(Token, Rc<Expr>),
     Var(Token),
 }

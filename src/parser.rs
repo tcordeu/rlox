@@ -169,7 +169,7 @@ impl Parser {
     }
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
-        let expr: Expr = self.equality()?;
+        let expr: Expr = self.or()?;
 
         if self.match_token(&[TokenType::Equal]) {
             let equals: Token = self.previous();
@@ -187,6 +187,32 @@ impl Parser {
         }
 
         Ok(expr)
+    }
+
+    fn or(&mut self) -> Result<Expr, ParseError> {
+        let mut expr: Expr = self.and()?;
+
+        while self.match_token(&[TokenType::Or]) {
+            let operator: Token = self.previous();
+            let right: Expr = self.and()?;
+
+            expr = Expr::Logical(Rc::new(expr), operator, Rc::new(right));
+        }
+
+        return Ok(expr);
+    }
+
+    fn and(&mut self) -> Result<Expr, ParseError> {
+        let mut expr: Expr = self.equality()?;
+
+        while self.match_token(&[TokenType::And]) {
+            let operator: Token = self.previous();
+            let right: Expr = self.equality()?;
+
+            expr = Expr::Logical(Rc::new(expr), operator, Rc::new(right));
+        }
+
+        return Ok(expr);
     }
 
     fn equality(&mut self) -> Result<Expr, ParseError> {
