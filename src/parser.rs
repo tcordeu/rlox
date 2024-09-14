@@ -111,13 +111,30 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_token(&[TokenType::Print]) {
+        if self.match_token(&[TokenType::If]) {
+            Ok(self.if_statement()?)
+        } else if self.match_token(&[TokenType::Print]) {
             Ok(self.print_statement()?)
         } else if self.match_token(&[TokenType::LeftBrace]) {
             Ok(Stmt::Block(self.block()?))
         } else {
             Ok(self.expression_statement()?)
         }
+    }
+
+    fn if_statement(&mut self) -> Result<Stmt, ParseError> {
+        let _ = self.consume(TokenType::LeftParen, "Expect '(' after 'if'");
+        let condition: Expr = self.expression()?;
+        let _ = self.consume(TokenType::RightParen, "Expect ')' after if condition");
+
+        let then_stmt: Stmt = self.statement()?;
+        let else_stmt: Option<Rc<Stmt>> = if self.match_token(&[TokenType::Else]) {
+            Some(Rc::new(self.statement()?))
+        } else {
+            None
+        };
+
+        Ok(Stmt::If(condition, Rc::new(then_stmt), else_stmt))
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {

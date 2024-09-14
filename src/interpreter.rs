@@ -33,6 +33,13 @@ impl Interpreter {
             Stmt::Expr(ref e) => {
                 let _ = self.eval(e);
             }
+            Stmt::If(ref cond, ref then_s, ref else_s) => {
+                if Self::is_truthy(self.eval(cond)?) {
+                    self.execute(then_s)?;
+                } else {
+                    self.execute(else_s.as_ref().unwrap())?;
+                }
+            }
             Stmt::Print(ref e) => match self.eval(e)? {
                 Some(val) => println!("{}", val),
                 None => println!("nil"),
