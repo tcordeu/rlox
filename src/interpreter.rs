@@ -64,6 +64,11 @@ impl Interpreter {
 
                 self.current_env = prev_env;
             }
+            Stmt::While(ref condition, ref body) => {
+                while Self::is_truthy(self.eval(condition)?) {
+                    self.execute(body)?;
+                }
+            }
         }
 
         Ok(())
