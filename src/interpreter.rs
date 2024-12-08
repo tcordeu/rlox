@@ -7,7 +7,7 @@ use crate::token::{Token, TokenType};
 use std::rc::Rc;
 
 pub struct Interpreter {
-    current_env: Option<Box<Environment>>,
+    current_env: Option<Environment>,
     env: Environment,
 }
 
@@ -53,11 +53,9 @@ impl Interpreter {
                 self.get_env().define(token.lexeme().to_string(), val)
             }
             Stmt::Block(ref statements) => {
-                let prev_env = self.current_env.clone();
+                let prev_env = self.current_env.take();
 
-                self.current_env = Some(Box::new(Environment::new(Some(Box::new(
-                    self.get_env().clone(),
-                )))));
+                self.current_env = Some(Environment::new(Some(Box::new(self.get_env().clone()))));
                 for s in statements {
                     self.execute(s)?;
                 }
@@ -84,10 +82,8 @@ impl Interpreter {
                     if Self::is_truthy(left.clone()) {
                         return Ok(left);
                     }
-                } else {
-                    if !Self::is_truthy(left.clone()) {
-                        return Ok(left);
-                    }
+                } else if !Self::is_truthy(left.clone()) {
+                    return Ok(left);
                 }
 
                 self.eval(r)
@@ -192,15 +188,11 @@ impl Interpreter {
     }
 
     fn is_truthy(l: Option<Rc<dyn Literal>>) -> bool {
-        if !l.is_some() {
+        if l.is_none() {
             return false;
         }
 
-        if l.unwrap().ltype() == LiteralType::False {
-            false
-        } else {
-            true
-        }
+        l.unwrap().ltype() != LiteralType::False
     }
 
     fn is_equal(l: Option<Rc<dyn Literal>>, r: Option<Rc<dyn Literal>>) -> bool {

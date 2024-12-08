@@ -210,7 +210,7 @@ impl Parser {
             expr = Expr::Logical(Rc::new(expr), operator, Rc::new(right));
         }
 
-        return Ok(expr);
+        Ok(expr)
     }
 
     fn and(&mut self) -> Result<Expr, ParseError> {
@@ -223,7 +223,7 @@ impl Parser {
             expr = Expr::Logical(Rc::new(expr), operator, Rc::new(right));
         }
 
-        return Ok(expr);
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, ParseError> {
