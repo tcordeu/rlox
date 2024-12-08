@@ -1,4 +1,3 @@
-use crate::error::RuntimeError;
 use crate::literal::Literal;
 use crate::token::Token;
 use std::collections::HashMap;
@@ -6,14 +5,12 @@ use std::rc::Rc;
 
 #[derive(Clone)]
 pub struct Environment {
-    enclosing: Option<Box<Environment>>,
     values: HashMap<String, Option<Rc<dyn Literal>>>,
 }
 
 impl Environment {
-    pub fn new(enclosing: Option<Box<Environment>>) -> Environment {
+    pub fn new() -> Environment {
         Environment {
-            enclosing,
             values: HashMap::new(),
         }
     }
@@ -22,41 +19,21 @@ impl Environment {
         self.values.insert(name, value);
     }
 
-    pub fn get(&self, name: Token) -> Result<&Option<Rc<dyn Literal>>, RuntimeError> {
+    pub fn get(&self, name: Token) -> Option<&Option<Rc<dyn Literal>>> {
         if self.values.contains_key(name.lexeme()) {
-            return Ok(self.values.get(name.lexeme()).unwrap());
-        }
-        if self.enclosing.is_some() {
-            let inner_env: &Environment = self.enclosing.as_ref().unwrap();
-
-            return inner_env.get(name);
+            return Some(self.values.get(name.lexeme()).unwrap());
         }
 
-        Err(RuntimeError::new(
-            format!("Undefined var '{}'", name.lexeme()),
-            name,
-        ))
+        None
     }
 
-    pub fn assign(
-        &mut self,
-        name: Token,
-        value: Option<Rc<dyn Literal>>,
-    ) -> Result<(), RuntimeError> {
+    pub fn assign(&mut self, name: Token, value: Option<Rc<dyn Literal>>) -> Option<()> {
         if self.values.contains_key(name.lexeme()) {
             self.values.insert(name.lexeme().to_string(), value);
 
-            return Ok(());
-        }
-        if self.enclosing.is_some() {
-            let inner_env: &mut Environment = self.enclosing.as_mut().unwrap();
-
-            return inner_env.assign(name, value);
+            return Some(());
         }
 
-        Err(RuntimeError::new(
-            format!("Undefined var '{}'", name.lexeme()),
-            name,
-        ))
+        None
     }
 }

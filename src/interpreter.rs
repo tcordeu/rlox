@@ -1,21 +1,19 @@
-use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::Expr;
 use crate::literal::*;
+use crate::scope::Scope;
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use std::rc::Rc;
 
 pub struct Interpreter {
-    current_env: Option<Environment>,
-    env: Environment,
+    scope: Scope,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
-            current_env: None,
-            env: Environment::new(None),
+            scope: Scope::new(),
         }
     }
 
@@ -50,17 +48,16 @@ impl Interpreter {
                     None => None,
                 };
 
-                self.get_env().define(token.lexeme().to_string(), val)
+                self.scope.define(token.lexeme().to_string(), val)
             }
             Stmt::Block(ref statements) => {
-                let prev_env = self.current_env.take();
+                self.scope.wrap();
 
-                self.current_env = Some(Environment::new(Some(Box::new(self.get_env().clone()))));
                 for s in statements {
                     self.execute(s)?;
                 }
 
-                self.current_env = prev_env;
+                self.scope.unwrap();
             }
             Stmt::While(ref condition, ref body) => {
                 while Self::is_truthy(self.eval(condition)?) {
@@ -89,11 +86,11 @@ impl Interpreter {
                 self.eval(r)
             }
             Expr::Grouping(ref expr) => self.eval(expr),
-            Expr::Var(ref token) => self.get_env().get(token.clone()).cloned(),
+            Expr::Var(ref token) => self.scope.get(token.clone()).cloned(),
             Expr::Assign(ref token, ref expr) => {
                 let val: Option<Rc<dyn Literal>> = self.eval(expr)?;
 
-                self.get_env().assign(token.clone(), val.clone())?;
+                self.scope.assign(token.clone(), val.clone())?;
                 Ok(val)
             }
             Expr::Unary(ref token, ref expr) => {
@@ -252,13 +249,5 @@ impl Interpreter {
                 token.clone(),
             ))?
             .to_string())
-    }
-
-    fn get_env(&mut self) -> &mut Environment {
-        if self.current_env.is_some() {
-            self.current_env.as_mut().unwrap()
-        } else {
-            &mut self.env
-        }
     }
 }
