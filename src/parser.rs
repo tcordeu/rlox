@@ -82,7 +82,8 @@ impl Parser {
         if self.match_token(&[TokenType::Var]) {
             match self.var_declaration() {
                 Ok(s) => Some(s),
-                Err(_) => {
+                Err(e) => {
+                    self.show_error(e);
                     self.sync();
                     None
                 }
@@ -90,7 +91,8 @@ impl Parser {
         } else {
             match self.statement() {
                 Ok(s) => Some(s),
-                Err(_) => {
+                Err(e) => {
+                    self.show_error(e);
                     self.sync();
                     None
                 }
@@ -112,17 +114,17 @@ impl Parser {
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
         if self.match_token(&[TokenType::For]) {
-            Ok(self.for_statement()?)
+            self.for_statement()
         } else if self.match_token(&[TokenType::If]) {
-            Ok(self.if_statement()?)
+            self.if_statement()
         } else if self.match_token(&[TokenType::Print]) {
-            Ok(self.print_statement()?)
+            self.print_statement()
         } else if self.match_token(&[TokenType::While]) {
-            Ok(self.while_statement()?)
+            self.while_statement()
         } else if self.match_token(&[TokenType::LeftBrace]) {
             Ok(Stmt::Block(self.block()?))
         } else {
-            Ok(self.expression_statement()?)
+            self.expression_statement()
         }
     }
 
@@ -162,9 +164,9 @@ impl Parser {
     }
 
     fn while_statement(&mut self) -> Result<Stmt, ParseError> {
-        let _ = self.consume(TokenType::LeftParen, "Expect '(' after 'while'")?;
+        self.consume(TokenType::LeftParen, "Expect '(' after 'while'")?;
         let condition: Expr = self.expression()?;
-        let _ = self.consume(TokenType::RightParen, "Expect ')' after condition")?;
+        self.consume(TokenType::RightParen, "Expect ')' after condition")?;
         let body: Stmt = self.statement()?;
 
         Ok(Stmt::While(condition, Rc::new(body)))
@@ -410,5 +412,9 @@ impl Parser {
                 _ => self.advance(),
             };
         }
+    }
+
+    fn show_error(&self, e: ParseError) {
+        println!("{}", e);
     }
 }
