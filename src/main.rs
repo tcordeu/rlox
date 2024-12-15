@@ -12,6 +12,7 @@ mod keyword;
 mod literal;
 mod parser;
 mod scanner;
+mod scope;
 mod stmt;
 mod token;
 

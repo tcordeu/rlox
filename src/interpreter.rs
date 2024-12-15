@@ -1,21 +1,19 @@
-use crate::environment::Environment;
 use crate::error::RuntimeError;
 use crate::expr::Expr;
 use crate::literal::*;
+use crate::scope::Scope;
 use crate::stmt::Stmt;
 use crate::token::{Token, TokenType};
 use std::rc::Rc;
 
 pub struct Interpreter {
-    current_env: Option<Box<Environment>>,
-    env: Environment,
+    scope: Scope,
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
-            current_env: None,
-            env: Environment::new(None),
+            scope: Scope::new(),
         }
     }
 
@@ -33,6 +31,13 @@ impl Interpreter {
             Stmt::Expr(ref e) => {
                 let _ = self.eval(e);
             }
+            Stmt::If(ref cond, ref then_s, ref else_s) => {
+                if Self::is_truthy(self.eval(cond)?) {
+                    self.execute(then_s)?;
+                } else {
+                    self.execute(else_s.as_ref().unwrap())?;
+                }
+            }
             Stmt::Print(ref e) => match self.eval(e)? {
                 Some(val) => println!("{}", val),
                 None => println!("nil"),
@@ -43,19 +48,21 @@ impl Interpreter {
                     None => None,
                 };
 
-                self.get_env().define(token.lexeme().to_string(), val)
+                self.scope.define(token.lexeme().to_string(), val)
             }
             Stmt::Block(ref statements) => {
-                let prev_env = self.current_env.clone();
+                self.scope.wrap();
 
-                self.current_env = Some(Box::new(Environment::new(Some(Box::new(
-                    self.get_env().clone(),
-                )))));
                 for s in statements {
                     self.execute(s)?;
                 }
 
-                self.current_env = prev_env;
+                self.scope.unwrap();
+            }
+            Stmt::While(ref condition, ref body) => {
+                while Self::is_truthy(self.eval(condition)?) {
+                    self.execute(body)?;
+                }
             }
         }
 
@@ -65,12 +72,25 @@ impl Interpreter {
     fn eval(&mut self, e: &Expr) -> Result<Option<Rc<dyn Literal>>, RuntimeError> {
         match *e {
             Expr::Literal(ref l) => Ok(l.clone()),
+            Expr::Logical(ref l, ref t, ref r) => {
+                let left = self.eval(l)?;
+
+                if t.ttype() == TokenType::Or {
+                    if Self::is_truthy(left.clone()) {
+                        return Ok(left);
+                    }
+                } else if !Self::is_truthy(left.clone()) {
+                    return Ok(left);
+                }
+
+                self.eval(r)
+            }
             Expr::Grouping(ref expr) => self.eval(expr),
-            Expr::Var(ref token) => self.get_env().get(token.clone()).cloned(),
+            Expr::Var(ref token) => self.scope.get(token.clone()).cloned(),
             Expr::Assign(ref token, ref expr) => {
                 let val: Option<Rc<dyn Literal>> = self.eval(expr)?;
 
-                self.get_env().assign(token.clone(), val.clone())?;
+                self.scope.assign(token.clone(), val.clone())?;
                 Ok(val)
             }
             Expr::Unary(ref token, ref expr) => {
@@ -165,7 +185,11 @@ impl Interpreter {
     }
 
     fn is_truthy(l: Option<Rc<dyn Literal>>) -> bool {
-        l.is_some()
+        if l.is_none() {
+            return false;
+        }
+
+        l.unwrap().ltype() != LiteralType::False
     }
 
     fn is_equal(l: Option<Rc<dyn Literal>>, r: Option<Rc<dyn Literal>>) -> bool {
@@ -225,13 +249,5 @@ impl Interpreter {
                 token.clone(),
             ))?
             .to_string())
-    }
-
-    fn get_env(&mut self) -> &mut Environment {
-        if self.current_env.is_some() {
-            self.current_env.as_mut().unwrap()
-        } else {
-            &mut self.env
-        }
     }
 }

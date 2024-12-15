@@ -9,6 +9,12 @@ impl AstPrinter {
                 Some(v) => format!("{}", v),
                 None => "None".to_string(),
             },
+            Expr::Logical(ref lhs, ref token, ref rhs) => format!(
+                "({} {} {})",
+                Self::pretty_print(lhs),
+                token.lexeme(),
+                Self::pretty_print(rhs)
+            ),
             Expr::Binary(ref lhs, ref token, ref rhs) => format!(
                 "({} {} {})",
                 token.lexeme(),
