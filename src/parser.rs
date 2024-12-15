@@ -111,7 +111,9 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_token(&[TokenType::If]) {
+        if self.match_token(&[TokenType::For]) {
+            Ok(self.for_statement()?)
+        } else if self.match_token(&[TokenType::If]) {
             Ok(self.if_statement()?)
         } else if self.match_token(&[TokenType::Print]) {
             Ok(self.print_statement()?)
@@ -166,6 +168,53 @@ impl Parser {
         let body: Stmt = self.statement()?;
 
         Ok(Stmt::While(condition, Rc::new(body)))
+    }
+
+    fn for_statement(&mut self) -> Result<Stmt, ParseError> {
+        let _ = self.consume(TokenType::LeftParen, "Expect '(' after 'for'")?;
+
+        let initializer: Option<Stmt>;
+        if self.match_token(&[TokenType::Semicolon]) {
+            initializer = None;
+        } else if self.match_token(&[TokenType::Var]) {
+            initializer = Some(self.var_declaration()?);
+        } else {
+            initializer = Some(self.expression_statement()?);
+        }
+
+        let mut condition: Option<Expr> = None;
+        if !self.check(TokenType::Semicolon) {
+            condition = Some(self.expression()?);
+        }
+        self.consume(TokenType::Semicolon, "Expect ';' after loop condition")?;
+
+        let mut increment: Option<Expr> = None;
+        if !self.check(TokenType::RightParen) {
+            increment = Some(self.expression()?);
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after for clauses")?;
+
+        let mut body: Stmt = self.statement()?;
+
+        if increment.is_some() {
+            let mut stmts: Vec<Stmt> = Vec::new();
+            stmts.push(body);
+            stmts.push(Stmt::Expr(increment.unwrap()));
+            body = Stmt::Block(stmts);
+        }
+        if condition.is_none() {
+            condition = Some(Expr::Literal(Some(Rc::new(BoolLiteral::new(true)))));
+        }
+        body = Stmt::While(condition.unwrap(), Rc::new(body));
+
+        if initializer.is_some() {
+            let mut stmts: Vec<Stmt> = Vec::new();
+            stmts.push(initializer.unwrap());
+            stmts.push(body);
+            body = Stmt::Block(stmts);
+        }
+
+        Ok(body)
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
